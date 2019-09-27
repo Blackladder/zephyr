@@ -30,6 +30,8 @@ enum {
 	BT_CONN_SLAVE_PARAM_SET,	/* If slave param were set from app */
 	BT_CONN_SLAVE_PARAM_L2CAP,	/* If should force L2CAP for CPUP */
 	BT_CONN_FORCE_PAIR,             /* Pairing even with existing keys. */
+	BT_CONN_PENDING_VERSION_INFO,	/* If the remote version is pending */
+	BT_CONN_HAVE_VERSION_INFO,	/* If we have the remote version */
 
 	/* Total number of flags - must be at the end of the enum */
 	BT_CONN_NUM_FLAGS,
@@ -138,6 +140,14 @@ struct bt_conn {
 		struct bt_conn_sco	sco;
 #endif
 	};
+#if defined(CONFIG_BT_REMOTE_VERSION)
+	struct bt_conn_rv {
+		u8_t  version;
+		u16_t manufacturer;
+		u16_t subversion;
+		struct k_sem sem;
+	} rv;
+#endif
 };
 
 /* Process incoming data for a connection */

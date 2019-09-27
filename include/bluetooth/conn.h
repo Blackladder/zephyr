@@ -148,6 +148,7 @@ struct bt_conn_le_info {
 	u16_t interval; /** Connection interval */
 	u16_t latency; /** Connection slave latency */
 	u16_t timeout; /** Connection supervision timeout */
+	const u8_t *features; /** Remote device's ble features */
 };
 
 /** BR/EDR Connection Info Structure */
@@ -169,6 +170,9 @@ enum {
  *  @param id Which local identity the connection was created with
  *  @param le LE Connection specific Info
  *  @param br BR/EDR Connection specific Info
+ *  @param version Remote link layer version
+ *  @param manufacturer Remote manufacturer identifier
+ *  @param subversion Per-manufacturer unique revision
  */
 struct bt_conn_info {
 	u8_t type;
@@ -182,6 +186,10 @@ struct bt_conn_info {
 
 		struct bt_conn_br_info br;
 	};
+
+	u8_t  version;
+	u16_t manufacturer;
+	u16_t subversion;
 };
 
 /** @brief Get connection info
@@ -191,9 +199,12 @@ struct bt_conn_info {
  *
  *  @return Zero on success or (negative) error code on failure.
  */
-int bt_conn_get_info(const struct bt_conn *conn, struct bt_conn_info *info);
+int bt_conn_get_info(struct bt_conn *conn, struct bt_conn_info *info);
 
 /** @brief Update the connection parameters.
+ *
+ *  Note: in order to retrieve the remote version (LL version, manufacturer
+ *  and subversion) the BT_REMOTE_VERSION kconfig option must be enabled
  *
  *  @param conn Connection object.
  *  @param param Updated connection parameters.

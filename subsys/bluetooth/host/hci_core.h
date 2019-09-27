@@ -19,6 +19,8 @@
 /* SCO  settings */
 #define BT_VOICE_CVSD_16BIT     0x0060
 
+#define HCI_CMD_TIMEOUT      K_SECONDS(10)
+
 /* k_poll event tags */
 enum {
 	BT_EVENT_CMD_TX,

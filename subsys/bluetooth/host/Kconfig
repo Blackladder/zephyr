@@ -249,6 +249,12 @@ config BT_AUTO_PHY_UPDATE
 	  want to rely on remote device to initiate the procedure at its
 	  discretion.
 
+config BT_REMOTE_VERSION
+	bool "Enable fetching of remote version"
+	help
+	  Enable this to get access to the remote version through
+	  bt_conn_get_info(). The fields in question in the bt_conn_info struct
+
 config BT_SMP
 	bool "Security Manager Protocol support"
 	select TINYCRYPT

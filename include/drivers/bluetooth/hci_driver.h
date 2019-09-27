@@ -53,6 +53,9 @@ static inline bool bt_hci_evt_is_prio(u8_t evt)
 #if defined(CONFIG_BT_CONN)
 	case BT_HCI_EVT_NUM_COMPLETED_PACKETS:
 #endif
+#if defined(CONFIG_BT_REMOTE_VERSION)
+	case BT_HCI_EVT_REMOTE_VERSION_INFO:
+#endif
 		return true;
 	default:
 		return false;
