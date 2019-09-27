@@ -55,6 +55,9 @@ static inline bool bt_hci_evt_is_prio(u8_t evt)
 	case BT_HCI_EVT_NUM_COMPLETED_PACKETS:
 	case BT_HCI_EVT_DATA_BUF_OVERFLOW:
 #endif
+#if defined(CONFIG_BT_REMOTE_VERSION)
+	case BT_HCI_EVT_REMOTE_VERSION_INFO:
+#endif
 		return true;
 	default:
 		return false;

@@ -355,6 +355,10 @@ static struct bt_conn *conn_new(void)
 	(void)memset(conn, 0, sizeof(*conn));
 	k_delayed_work_init(&conn->update_work, conn_update_timeout);
 
+#if defined(CONFIG_BT_REMOTE_VERSION)
+	k_sem_init(&conn->rv.sem, 0, 1);
+#endif /* CONFIG_BT_REMOTE_VERSION */
+
 	atomic_set(&conn->ref, 1);
 
 	return conn;
@@ -1615,6 +1619,13 @@ void bt_conn_set_state(struct bt_conn *conn, bt_conn_state_t state)
 			bt_conn_unref(conn);
 			break;
 		}
+
+#if defined(CONFIG_BT_REMOTE_VERSION)
+		if (atomic_test_and_clear_bit(conn->flags,
+					      BT_CONN_PENDING_VERSION_INFO)) {
+			k_sem_give(&conn->rv.sem);
+		}
+#endif
 		/* Notify disconnection and queue a dummy buffer to wake
 		 * up and stop the tx thread for states where it was
 		 * running.
@@ -1847,8 +1858,66 @@ const bt_addr_le_t *bt_conn_get_dst(const struct bt_conn *conn)
 	return &conn->le.dst;
 }
 
-int bt_conn_get_info(const struct bt_conn *conn, struct bt_conn_info *info)
+#if defined(CONFIG_BT_REMOTE_VERSION)
+static int hci_read_remote_version(struct bt_conn *conn)
 {
+	struct bt_hci_cp_read_remote_version_info *cp;
+	struct net_buf *buf;
+	int err;
+
+	if (conn->state != BT_CONN_CONNECTED) {
+		return -ENOTCONN;
+	}
+
+	if (atomic_test_and_set_bit(conn->flags,
+				    BT_CONN_PENDING_VERSION_INFO)) {
+		return -EBUSY;
+	}
+
+	buf = bt_hci_cmd_create(BT_HCI_OP_READ_REMOTE_VERSION_INFO,
+				sizeof(*cp));
+	if (!buf) {
+		atomic_clear_bit(conn->flags, BT_CONN_PENDING_VERSION_INFO);
+		return -ENOBUFS;
+	}
+
+	cp = net_buf_add(buf, sizeof(*cp));
+	cp->handle = sys_cpu_to_le16(conn->handle);
+	err = bt_hci_cmd_send_sync(BT_HCI_OP_READ_REMOTE_VERSION_INFO, buf,
+				   NULL);
+	if (err) {
+		atomic_clear_bit(conn->flags, BT_CONN_PENDING_VERSION_INFO);
+		return err;
+	}
+
+	k_sem_take(&conn->rv.sem, HCI_CMD_TIMEOUT);
+
+	return 0;
+}
+#endif /* CONFIG_BT_REMOTE_VERSION */
+
+int bt_conn_get_info(struct bt_conn *conn, struct bt_conn_info *info)
+{
+#if defined(CONFIG_BT_REMOTE_VERSION)
+	if (!atomic_test_bit(conn->flags, BT_CONN_HAVE_VERSION_INFO)) {
+		int err;
+
+		err = hci_read_remote_version(conn);
+		if (err) {
+			BT_WARN("Remote version info failed (err %d)", err);
+		}
+	}
+
+	/* The conn->rv values will be just zeroes if the operation failed */
+	info->version = conn->rv.version;
+	info->manufacturer = conn->rv.manufacturer;
+	info->subversion = conn->rv.subversion;
+#else
+	info->version = 0;
+	info->manufacturer = 0;
+	info->subversion = 0;
+#endif /* CONFIG_BT_REMOTE_VERSION */
+
 	info->type = conn->type;
 	info->role = conn->role;
 	info->id = conn->id;
@@ -1867,6 +1936,7 @@ int bt_conn_get_info(const struct bt_conn *conn, struct bt_conn_info *info)
 		info->le.interval = conn->le.interval;
 		info->le.latency = conn->le.latency;
 		info->le.timeout = conn->le.timeout;
+		info->le.features = conn->le.features;
 		return 0;
 #if defined(CONFIG_BT_BREDR)
 	case BT_CONN_TYPE_BR:

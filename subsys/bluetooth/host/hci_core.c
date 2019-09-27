@@ -50,8 +50,6 @@
 #define CONN_UPDATE_TIMEOUT  K_MSEC(CONFIG_BT_CONN_PARAM_UPDATE_TIMEOUT)
 #define RPA_TIMEOUT          K_SECONDS(CONFIG_BT_RPA_TIMEOUT)
 
-#define HCI_CMD_TIMEOUT      K_SECONDS(10)
-
 /* Stacks for the threads */
 #if !defined(CONFIG_BT_RECV_IS_RX_THREAD)
 static struct k_thread rx_thread_data;
@@ -3204,6 +3202,28 @@ static void hci_encrypt_key_refresh_complete(struct net_buf *buf)
 }
 #endif /* CONFIG_BT_SMP || CONFIG_BT_BREDR */
 
+#if defined(CONFIG_BT_REMOTE_VERSION)
+static void bt_hci_evt_read_remote_version_complete(struct net_buf *buf)
+{
+	struct bt_hci_evt_remote_version_info *evt;
+	struct bt_conn *conn;
+
+	evt = net_buf_pull_mem(buf, sizeof(*evt));
+	conn = bt_conn_lookup_handle(evt->handle);
+
+	atomic_clear_bit(conn->flags, BT_CONN_PENDING_VERSION_INFO);
+	if (!evt->status) {
+		conn->rv.version = evt->version;
+		conn->rv.manufacturer = sys_le16_to_cpu(evt->manufacturer);
+		conn->rv.subversion = sys_le16_to_cpu(evt->subversion);
+		atomic_set_bit(conn->flags, BT_CONN_HAVE_VERSION_INFO);
+	}
+
+	k_sem_give(&conn->rv.sem);
+	bt_conn_unref(conn);
+}
+#endif /* CONFIG_BT_REMOTE_VERSION */
+
 #if defined(CONFIG_BT_SMP)
 static void le_ltk_neg_reply(u16_t handle)
 {
@@ -4883,6 +4903,11 @@ static const struct event_handler prio_events[] = {
 	EVENT_HANDLER(BT_HCI_EVT_NUM_COMPLETED_PACKETS,
 		      hci_num_completed_packets,
 		      sizeof(struct bt_hci_evt_num_completed_packets)),
+#if defined(CONFIG_BT_REMOTE_VERSION)
+	EVENT_HANDLER(BT_HCI_EVT_REMOTE_VERSION_INFO,
+		      bt_hci_evt_read_remote_version_complete,
+		      sizeof(struct bt_hci_evt_remote_version_info)),
+#endif /* CONFIG_BT_REMOTE_VERSION */
 #endif /* CONFIG_BT_CONN */
 };
 
