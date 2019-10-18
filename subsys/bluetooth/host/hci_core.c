@@ -3627,6 +3627,16 @@ static void le_adv_report(struct net_buf *buf)
 }
 #endif /* CONFIG_BT_OBSERVER */
 
+int bt_hci_get_conn_handle(const struct bt_conn *conn, u16_t *conn_handle)
+{
+	if (conn->state != BT_CONN_CONNECTED) {
+		return -ENOTCONN;
+	}
+
+	*conn_handle = conn->handle;
+	return 0;
+}
+
 #if defined(CONFIG_BT_HCI_VS_EVT_USER)
 int bt_hci_register_vnd_evt_cb(bt_hci_vnd_evt_cb_t cb)
 {
@@ -5920,6 +5930,75 @@ int bt_le_scan_stop(void)
 	return bt_le_scan_update(false);
 }
 #endif /* CONFIG_BT_OBSERVER */
+
+#if defined(CONFIG_BT_WHITELIST)
+int bt_le_whitelist_add(const bt_addr_le_t *addr)
+{
+	struct bt_hci_cp_le_add_dev_to_wl *cp;
+	struct net_buf *buf;
+	int err;
+
+	if (!(bt_dev.le.wl_entries < bt_dev.le.wl_size)) {
+		return -ENOMEM;
+	}
+
+	buf = bt_hci_cmd_create(BT_HCI_OP_LE_ADD_DEV_TO_WL, sizeof(*cp));
+	if (!buf) {
+		return -ENOBUFS;
+	}
+
+	cp = net_buf_add(buf, sizeof(*cp));
+	bt_addr_le_copy(&cp->addr, addr);
+
+	err = bt_hci_cmd_send_sync(BT_HCI_OP_LE_ADD_DEV_TO_WL, buf, NULL);
+	if (err) {
+		BT_ERR("Failed to add device to whitelist");
+
+		return err;
+	}
+
+	bt_dev.le.wl_entries++;
+
+	return 0;
+}
+
+int bt_le_whitelist_rem(const bt_addr_le_t *addr)
+{
+	struct bt_hci_cp_le_rem_dev_from_wl *cp;
+	struct net_buf *buf;
+	int err;
+
+	buf = bt_hci_cmd_create(BT_HCI_OP_LE_REM_DEV_FROM_WL, sizeof(*cp));
+	if (!buf) {
+		return -ENOBUFS;
+	}
+
+	cp = net_buf_add(buf, sizeof(*cp));
+	bt_addr_le_copy(&cp->addr, addr);
+
+	err = bt_hci_cmd_send_sync(BT_HCI_OP_LE_REM_DEV_FROM_WL, buf, NULL);
+	if (err) {
+		BT_ERR("Failed to remove device from whitelist");
+		return err;
+	}
+
+	bt_dev.le.wl_entries--;
+	return 0;
+}
+
+int bt_le_whitelist_clear(void)
+{
+	int err = bt_hci_cmd_send_sync(BT_HCI_OP_LE_CLEAR_WL, NULL, NULL);
+
+	if (err) {
+		BT_ERR("Failed to clear whitelist");
+		return err;
+	}
+
+	bt_dev.le.wl_entries = 0;
+	return 0;
+}
+#endif /* defined(CONFIG_BT_WHITELIST) */
 
 int bt_le_set_chan_map(u8_t chan_map[5])
 {

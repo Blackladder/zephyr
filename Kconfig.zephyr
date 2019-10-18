@@ -111,7 +111,7 @@ config FLASH_LOAD_OFFSET
 	  If unsure, leave at the default value 0.
 
 config FLASH_LOAD_SIZE
-	hex "Kernel load size"
+	int "Kernel load size"
 	default $(dt_chosen_reg_size,$(DT_CHOSEN_Z_CODE_PARTITION)) if USE_CODE_PARTITION
 	default 0
 	depends on HAS_FLASH_LOAD_OFFSET
@@ -178,12 +178,6 @@ config CUSTOM_SECTIONS_LD
 	  Note: This is deprecated, use Cmake function zephyr_linker_sources() instead.
 	  Include a customized linker script fragment for inserting additional
 	  arbitrary sections.
-
-config LINK_WHOLE_ARCHIVE
-	bool "Allow linking with --whole-archive"
-	help
-	  This options allows linking external libraries with the
-	  --whole-archive option to keep all symbols.
 
 config KERNEL_ENTRY
 	string "Kernel entry symbol"

@@ -222,8 +222,19 @@ class EDT:
             binding = self._merge_included_bindings(binding, binding_path)
             self._check_binding(binding, binding_path)
 
-            self._compat2binding[binding_compat, _binding_bus(binding)] = \
-                (binding, binding_path)
+            bus = _binding_bus(binding)
+
+            # Do not allow two different bindings to have the same
+            # 'compatible:'/'parent-bus:' combo
+            old_binding = self._compat2binding.get((binding_compat, bus))
+            if old_binding:
+                msg = "both {} and {} have 'compatible: {}'".format(
+                    old_binding[1], binding_path, binding_compat)
+                if bus is not None:
+                    msg += " and 'parent-bus: {}'".format(bus)
+                _err(msg)
+
+            self._compat2binding[binding_compat, bus] = (binding, binding_path)
 
     def _binding_compat(self, binding, binding_path):
         # Returns the string listed in 'compatible:' in 'binding', or None if
@@ -548,6 +559,10 @@ class Node:
       translated through any 'ranges' properties on parent nodes, or None if
       the node name has no unit-address portion
 
+    description:
+      The description string from the binding for the node, or None if the node
+      has no binding. Trailing whitespace (including newlines) is removed.
+
     path:
       The devicetree path of the node
 
@@ -582,10 +597,6 @@ class Node:
     matching_compat:
       The 'compatible' string for the binding that matched the node, or None if
       the node has no binding
-
-    description:
-      The description string from the binding file for the node, or None if the
-      node has no binding. Trailing whitespace (including newlines) is removed.
 
     binding_path:
       The path to the binding file for the node, or None if the node has no
@@ -644,6 +655,13 @@ class Node:
                            "for {}".format(self.regs[0].addr, self.name))
 
         return addr
+
+    @property
+    def description(self):
+        "See the class docstring."
+        if self._binding and "description" in self._binding:
+            return self._binding["description"].rstrip()
+        return None
 
     @property
     def path(self):
@@ -742,10 +760,6 @@ class Node:
                     self._binding, self.binding_path = \
                         self.edt._compat2binding[compat, bus]
 
-                    self.description = self._binding.get("description")
-                    if self.description:
-                        self.description = self.description.rstrip()
-
                     return
         else:
             # No 'compatible' property. See if the parent binding has a
@@ -759,13 +773,11 @@ class Node:
                 self._binding = binding_from_parent
                 self.binding_path = self.parent.binding_path
                 self.matching_compat = self.parent.matching_compat
-                self.description = self._binding["description"]
 
                 return
 
         # No binding found
-        self._binding = self.binding_path = self.matching_compat = \
-            self.description = None
+        self._binding = self.binding_path = self.matching_compat = None
 
     def _binding_from_parent(self):
         # Returns the binding from 'child-binding:' in the parent node's

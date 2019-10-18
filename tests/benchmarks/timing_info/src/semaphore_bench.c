@@ -54,13 +54,13 @@ void semaphore_bench(void)
 	sem0_tid = k_thread_create(&my_thread, my_stack_area,
 				   STACK_SIZE,
 				   thread_sem0_test, NULL, NULL, NULL,
-				   2 /*priority*/, 0, 0);
+				   2 /*priority*/, 0, K_NO_WAIT);
 	sem1_tid = k_thread_create(&my_thread_0, my_stack_area_0,
 				   STACK_SIZE, thread_sem1_test,
 				   NULL, NULL, NULL,
-				   2 /*priority*/, 0, 0);
+				   2 /*priority*/, 0, K_NO_WAIT);
 
-	k_sleep(1000);
+	k_sleep(K_MSEC(1000));
 
 
 	/* u64_t test_time1 = z_tsc_read(); */
@@ -70,13 +70,13 @@ void semaphore_bench(void)
 	sem0_tid = k_thread_create(&my_thread, my_stack_area,
 				   STACK_SIZE, thread_sem0_give_test,
 				   NULL, NULL, NULL,
-				   2 /*priority*/, 0, 0);
+				   2 /*priority*/, 0, K_NO_WAIT);
 	sem1_tid = k_thread_create(&my_thread_0, my_stack_area_0,
 				   STACK_SIZE, thread_sem1_give_test,
 				   NULL, NULL, NULL,
-				   2 /*priority*/, 0, 0);
+				   2 /*priority*/, 0, K_NO_WAIT);
 
-	k_sleep(1000);
+	k_sleep(K_MSEC(1000));
 	sem_give_end_time = (z_arch_timing_value_swap_common);
 	u32_t sem_give_cycles = sem_give_end_time - sem_give_start_time;
 

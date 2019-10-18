@@ -64,7 +64,7 @@ void test_systhreads_main(void)
  */
 void test_systhreads_idle(void)
 {
-	k_sleep(100);
+	k_sleep(K_MSEC(100));
 	/** TESTPOINT: check working thread priority should */
 	zassert_true(k_thread_priority_get(k_current_get()) <
 		     K_IDLE_PRIO, NULL);
@@ -78,7 +78,7 @@ static void customdata_entry(void *p1, void *p2, void *p3)
 	while (1) {
 		k_thread_custom_data_set((void *)data);
 		/* relinguish cpu for a while */
-		k_sleep(50);
+		k_sleep(K_MSEC(50));
 		/** TESTPOINT: custom data comparison */
 		zassert_equal(data, (long)k_thread_custom_data_get(), NULL);
 		data++;
@@ -95,9 +95,9 @@ void test_customdata_get_set_coop(void)
 {
 	k_tid_t tid = k_thread_create(&tdata_custom, tstack_custom, STACK_SIZE,
 				      customdata_entry, NULL, NULL, NULL,
-				      K_PRIO_COOP(1), 0, 0);
+				      K_PRIO_COOP(1), 0, K_NO_WAIT);
 
-	k_sleep(500);
+	k_sleep(K_MSEC(500));
 
 	/* cleanup environment */
 	k_thread_abort(tid);
@@ -130,7 +130,7 @@ void test_thread_name_get_set(void)
 	/* Set and get child thread's name */
 	k_tid_t tid = k_thread_create(&tdata_name, tstack_name, STACK_SIZE,
 				      thread_name_entry, NULL, NULL, NULL,
-				      K_PRIO_PREEMPT(1), 0, 0);
+				      K_PRIO_PREEMPT(1), 0, K_NO_WAIT);
 
 	ret = k_thread_name_set(tid, "customdata");
 	zassert_equal(ret, 0, "k_thread_name_set() failed");
@@ -198,7 +198,7 @@ void test_thread_name_user_get_set(void)
 	/* Set and get child thread's name */
 	k_tid_t tid = k_thread_create(&tdata_name, tstack_name, STACK_SIZE,
 				      thread_name_entry, NULL, NULL, NULL,
-				      K_PRIO_PREEMPT(1), K_USER, 0);
+				      K_PRIO_PREEMPT(1), K_USER, K_NO_WAIT);
 	ret = k_thread_name_set(tid, "customdata");
 	zassert_equal(ret, 0, "k_thread_name_set() failed");
 	ret = k_thread_name_copy(tid, thread_name, sizeof(thread_name));
@@ -223,9 +223,9 @@ void test_customdata_get_set_preempt(void)
 	/** TESTPOINT: custom data of preempt thread */
 	k_tid_t tid = k_thread_create(&tdata_custom, tstack_custom, STACK_SIZE,
 				      customdata_entry, NULL, NULL, NULL,
-				      K_PRIO_PREEMPT(0), K_USER, 0);
+				      K_PRIO_PREEMPT(0), K_USER, K_NO_WAIT);
 
-	k_sleep(500);
+	k_sleep(K_MSEC(500));
 
 	/* cleanup environment */
 	k_thread_abort(tid);

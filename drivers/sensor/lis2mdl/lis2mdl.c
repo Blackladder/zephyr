@@ -13,14 +13,12 @@
 #include <sys/byteorder.h>
 #include <drivers/sensor.h>
 #include <string.h>
-
+#include <logging/log.h>
 #include "lis2mdl.h"
 
 struct lis2mdl_data lis2mdl_data;
 
-#define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
-#include <logging/log.h>
-LOG_MODULE_REGISTER(LIS2MDL);
+LOG_MODULE_REGISTER(LIS2MDL, CONFIG_SENSOR_LOG_LEVEL);
 
 #ifdef CONFIG_LIS2MDL_MAG_ODR_RUNTIME
 static int lis2mdl_set_odr(struct device *dev, const struct sensor_value *val)
@@ -58,7 +56,7 @@ static int lis2mdl_set_hard_iron(struct device *dev, enum sensor_channel chan,
 {
 	struct lis2mdl_data *lis2mdl = dev->driver_data;
 	u8_t i;
-	axis3bit16_t offset;
+	union axis3bit16_t offset;
 
 	for (i = 0U; i < 3; i++) {
 		offset.i16bit[i] = sys_cpu_to_le16(val->val1);
@@ -174,7 +172,7 @@ static int lis2mdl_attr_set(struct device *dev,
 static int lis2mdl_sample_fetch_mag(struct device *dev)
 {
 	struct lis2mdl_data *lis2mdl = dev->driver_data;
-	axis3bit16_t raw_mag;
+	union axis3bit16_t raw_mag;
 
 	/* fetch raw data sample */
 	if (lis2mdl_magnetic_raw_get(lis2mdl->ctx, raw_mag.u8bit) < 0) {
@@ -192,7 +190,7 @@ static int lis2mdl_sample_fetch_mag(struct device *dev)
 static int lis2mdl_sample_fetch_temp(struct device *dev)
 {
 	struct lis2mdl_data *lis2mdl = dev->driver_data;
-	axis1bit16_t raw_temp;
+	union axis1bit16_t raw_temp;
 	s32_t temp;
 
 	/* fetch raw temperature sample */

@@ -33,6 +33,12 @@
 
 #include "hal/debug.h"
 
+#if defined(CONFIG_BT_CTLR_ZLI)
+#define IRQ_CONNECT_FLAGS IRQ_ZERO_LATENCY
+#else
+#define IRQ_CONNECT_FLAGS 0
+#endif
+
 static struct {
 	struct {
 		void              *param;
@@ -158,11 +164,16 @@ int lll_init(void)
 
 	/* Connect ISRs */
 	IRQ_DIRECT_CONNECT(RADIO_IRQn, CONFIG_BT_CTLR_LLL_PRIO,
-			   radio_nrf5_isr, 0);
+			   radio_nrf5_isr, IRQ_CONNECT_FLAGS);
+#if (CONFIG_BT_CTLR_LLL_PRIO == CONFIG_BT_CTLR_ULL_HIGH_PRIO)
+	IRQ_CONNECT(RTC0_IRQn, CONFIG_BT_CTLR_ULL_HIGH_PRIO,
+		    rtc0_nrf5_isr, NULL, IRQ_CONNECT_FLAGS);
+#else
 	IRQ_CONNECT(RTC0_IRQn, CONFIG_BT_CTLR_ULL_HIGH_PRIO,
 		    rtc0_nrf5_isr, NULL, 0);
+#endif
 	IRQ_CONNECT(HAL_SWI_RADIO_IRQ, CONFIG_BT_CTLR_LLL_PRIO,
-		    swi_lll_nrf5_isr, NULL, 0);
+		    swi_lll_nrf5_isr, NULL, IRQ_CONNECT_FLAGS);
 #if defined(CONFIG_BT_CTLR_LOW_LAT) || \
 	(CONFIG_BT_CTLR_ULL_HIGH_PRIO != CONFIG_BT_CTLR_ULL_LOW_PRIO)
 	IRQ_CONNECT(HAL_SWI_JOB_IRQ, CONFIG_BT_CTLR_ULL_LOW_PRIO,
@@ -436,8 +447,9 @@ static int prepare(lll_is_abort_cb_t is_abort_cb, lll_abort_cb_t abort_cb,
 		   lll_prepare_cb_t prepare_cb, int prio,
 		   struct lll_prepare_param *prepare_param, u8_t is_resume)
 {
-	struct lll_event *p;
 	u8_t idx = UINT8_MAX;
+	struct lll_event *p;
+	int ret, err;
 
 	/* Find the ready prepare in the pipeline */
 	p = ull_prepare_dequeue_iter(&idx);
@@ -456,7 +468,6 @@ static int prepare(lll_is_abort_cb_t is_abort_cb, lll_abort_cb_t abort_cb,
 		struct lll_event *next;
 		int resume_prio;
 #endif /* CONFIG_BT_CTLR_LOW_LAT */
-		int ret;
 
 		if (IS_ENABLED(CONFIG_BT_CTLR_LOW_LAT) && event.curr.param) {
 			/* early abort */
@@ -535,7 +546,16 @@ static int prepare(lll_is_abort_cb_t is_abort_cb, lll_abort_cb_t abort_cb,
 	event.curr.is_abort_cb = is_abort_cb;
 	event.curr.abort_cb = abort_cb;
 
-	return prepare_cb(prepare_param);
+	err = prepare_cb(prepare_param);
+
+	/* Stop running pre-empt timer, if any */
+	ret = ticker_stop(TICKER_INSTANCE_ID_CTLR, TICKER_USER_ID_LLL,
+			  TICKER_ID_LLL_PREEMPT, NULL, NULL);
+	LL_ASSERT((ret == TICKER_STATUS_SUCCESS) ||
+		  (ret == TICKER_STATUS_FAILURE) ||
+		  (ret == TICKER_STATUS_BUSY));
+
+	return err;
 }
 
 static int resume_enqueue(lll_prepare_cb_t resume_cb, int resume_prio)
@@ -552,7 +572,7 @@ static int resume_enqueue(lll_prepare_cb_t resume_cb, int resume_prio)
 #if !defined(CONFIG_BT_CTLR_LOW_LAT)
 static void ticker_start_op_cb(u32_t status, void *param)
 {
-	/* NOTE: this callback is present only for addition debug messages
+	/* NOTE: this callback is present only for addition of debug messages
 	 * when needed, else can be dispensed with.
 	 */
 	ARG_UNUSED(param);

@@ -6,7 +6,7 @@
 
 /**
  * @file
- * @brief ARM Cortex-M exception/interrupt exit API
+ * @brief ARM Cortex-M and Cortex-R exception/interrupt exit API
  *
  *
  * Provides functions for performing kernel handling when exiting exceptions or
@@ -14,9 +14,9 @@
  * wrapped around by _isr_wrapper()).
  */
 
-#include <kernel_structs.h>
-#include <offsets_short.h>
 #include <toolchain.h>
+#include <linker/sections.h>
+#include <offsets_short.h>
 #include <arch/cpu.h>
 
 _ASM_FILE_PROLOGUE
@@ -72,6 +72,7 @@ SECTION_SUBSEC_FUNC(TEXT, _HandlerModeExit, z_arm_int_exit)
 
 SECTION_SUBSEC_FUNC(TEXT, _HandlerModeExit, z_arm_exc_exit)
 #if defined(CONFIG_CPU_CORTEX_R)
+    /* r0 contains the caller mode */
     push {r0, lr}
 #endif
 
@@ -90,9 +91,7 @@ SECTION_SUBSEC_FUNC(TEXT, _HandlerModeExit, z_arm_exc_exit)
     ldr r2, =_SCS_ICSR_PENDSV
     str r2, [r1]
 #elif defined(CONFIG_CPU_CORTEX_R)
-    push {r0, lr}
     bl z_arm_pendsv
-    pop {r0, lr}
 #endif
 
 _ExcExitWithGdbStub:
@@ -101,6 +100,7 @@ _EXIT_EXC:
 #endif /* CONFIG_PREEMPT_ENABLED */
 
 #ifdef CONFIG_STACK_SENTINEL
+#if defined(CONFIG_CPU_CORTEX_M)
     push {r0, lr}
     bl z_check_stack_sentinel
 #if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)
@@ -109,16 +109,25 @@ _EXIT_EXC:
 #else
     pop {r0, lr}
 #endif /* CONFIG_ARMV6_M_ARMV8_M_BASELINE */
+#else
+    bl z_check_stack_sentinel
+#endif /* CONFIG_CPU_CORTEX_M */
 #endif /* CONFIG_STACK_SENTINEL */
 
 #if defined(CONFIG_CPU_CORTEX_M)
     bx lr
 #elif defined(CONFIG_CPU_CORTEX_R)
-    /*
-     * r0-r3 are either the values from the thread before it was switched out
-     * or they are the args to _new_thread for a new thread
-     */
+    /* Restore the caller mode to r0 */
     pop {r0, lr}
+
+    /*
+     * Restore r0-r3, r12 and lr stored into the process stack by the mode
+     * entry function. These registers are saved by _isr_wrapper for IRQ mode
+     * and z_arm_svc for SVC mode.
+     *
+     * r0-r3 are either the values from the thread before it was switched out
+     * or they are the args to _new_thread for a new thread.
+     */
     push {r4, r5}
 
     cmp r0, #RET_FROM_SVC

@@ -18,18 +18,21 @@ virtual report
 // Base rule provides the complex identifier regular expression
 @r_last_timeout@
 identifier last_timeout =~ "(?x)^k_
-( timer_start
-| queue_get
+( delayed_work_submit(|_to_queue)
 | futex_wait
-| stack_pop
-| delayed_work_submit(|_to_queue)
-| work_poll_submit(|_to_queue)
+| mbox_data_block_get
+| (mbox|msgq)_get
+| mem_(pool|slab)_alloc
 | mutex_lock
-| sem_take
-| (msgq|mbox|pipe)_(block_)?(put|get)
-| mem_(slab|pool)_alloc
+| pipe_(get|put)
 | poll
-| thread_deadline_set
+| queue_get
+| sem_take
+| sleep
+| stack_pop
+| thread_create
+| timer_start
+| work_poll_submit(|_to_queue)
 )$";
 @@
 last_timeout(...)
@@ -83,6 +86,55 @@ p << r_last_timeout_const_report.p;
 C << r_last_timeout_const_report.C;
 @@
 msg = "WARNING: replace constant {} with timeout in {}".format(C, fn)
+coccilib.report.print_report(p[0], msg);
+
+// ** Convert integer delays in K_THREAD_DEFINE to the appropriate macro
+
+// Identify declarers where an identifier is used for the delay
+@r_thread_decl_id@
+declarer name K_THREAD_DEFINE;
+identifier C;
+position p;
+@@
+K_THREAD_DEFINE@p(..., C);
+
+// Select declarers with constant literal delay and replace with
+// appropriate macro
+@depends on patch@
+declarer name K_THREAD_DEFINE;
+constant C;
+position p != r_thread_decl_id.p;
+@@
+K_THREAD_DEFINE@p(...,
+(
+- 0
++ K_NO_WAIT
+|
+- -1
++ K_FOREVER
+|
+- C
++ K_MSEC(C)
+)
+ );
+
+// Identify declarers where an identifier is used for the delay
+@r_thread_decl_const
+ depends on report@
+declarer name K_THREAD_DEFINE;
+constant C;
+position p != r_thread_decl_id.p;
+@@
+K_THREAD_DEFINE@p(..., C);
+
+
+@script:python
+ depends on report
+@
+C << r_thread_decl_const.C;
+p << r_thread_decl_const.p;
+@@
+msg = "WARNING: replace constant {} with timeout in K_THREAD_DEFINE".format(C)
 coccilib.report.print_report(p[0], msg);
 
 // ** Handle k_timer_start where the second (not last) argument is a

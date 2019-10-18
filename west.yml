@@ -56,10 +56,10 @@ manifest:
       revision: 9151e614c23997074acd1096a3e8a9e5c255d5b9
       path: modules/hal/silabs
     - name: hal_st
-      revision: 0ec40aed8087f26bd9ac1b70fb5a6c326a6451aa
+      revision: fa481784b3c49780f18d50bafe00390ccb62b2ec
       path: modules/hal/st
     - name: hal_stm32
-      revision: 41ae0cf14ca89fb0c934ebdb5d75e940f98af64a
+      revision: 886636e6db209abe6a05a95be5ec7b85a3dd7237
       path: modules/hal/stm32
     - name: hal_ti
       revision: 7a82e93e14766ef6e42df9915ea2ab8e3b952a8b
@@ -96,7 +96,7 @@ manifest:
       path: modules/debug/segger
     - name: tinycbor
       path: modules/lib/tinycbor
-      revision: 31ae89e4b768612722620cb6cb173a0de4a19cc9
+      revision: 6966f6140cb870b792330a5186020eb1f4151f3e
     - name: littlefs
       path: modules/fs/littlefs
       revision: fe9572dd5a9fcf93a249daa4233012692bd2881d

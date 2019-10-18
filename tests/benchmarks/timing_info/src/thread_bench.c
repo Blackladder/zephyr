@@ -139,9 +139,9 @@ void system_thread_bench(void)
 	k_thread_create(&my_thread_0, my_stack_area_0, STACK_SIZE,
 			thread_swap_test,
 			NULL, NULL, NULL,
-			-1 /*priority*/, 0, 0);
+			-1 /*priority*/, 0, K_NO_WAIT);
 
-	k_sleep(1);
+	k_sleep(K_MSEC(1));
 	thread_abort_end_time = (z_arch_timing_value_swap_common);
 	z_arch_timing_swap_end = z_arch_timing_value_swap_common;
 #if defined(CONFIG_X86) || defined(CONFIG_X86_64)
@@ -166,7 +166,7 @@ void system_thread_bench(void)
 					 STACK_SIZE,
 					 thread_swap_test,
 					 NULL, NULL, NULL,
-					 5 /*priority*/, 0, 10);
+					 5 /*priority*/, 0, K_MSEC(10));
 	TIMING_INFO_PRE_READ();
 	thread_create_end_time = TIMING_INFO_OS_GET_TIME();
 
@@ -183,7 +183,7 @@ void system_thread_bench(void)
 					      STACK_SIZE,
 					      thread_suspend_test,
 					      NULL, NULL, NULL,
-					      -1 /*priority*/, 0, 0);
+					      -1 /*priority*/, 0, K_NO_WAIT);
 
 	TIMING_INFO_PRE_READ();
 	thread_suspend_end_time = TIMING_INFO_OS_GET_TIME();
@@ -290,7 +290,7 @@ void heap_malloc_free_bench(void)
 	u32_t sum_malloc = 0U;
 	u32_t sum_free = 0U;
 
-	k_sleep(10);
+	k_sleep(K_MSEC(10));
 	while (count++ != 100) {
 		TIMING_INFO_PRE_READ();
 		heap_malloc_start_time = TIMING_INFO_OS_GET_TIME();

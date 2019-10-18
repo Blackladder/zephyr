@@ -16,7 +16,7 @@
 #include <linker/sections.h>
 #include <kernel_structs.h>
 #include <wait_q.h>
-#include <ia32/mmustructs.h>
+#include <arch/x86/mmustructs.h>
 #include <sys/printk.h>
 
 /* forward declaration */
@@ -120,7 +120,7 @@ FUNC_NORETURN void z_arch_user_mode_enter(k_thread_entry_t user_entry,
 
 	/* Set up the kernel stack used during privilege elevation */
 	z_x86_mmu_set_flags(&z_x86_kernel_ptables, &header->privilege_stack,
-			    MMU_PAGE_SIZE, MMU_ENTRY_WRITE, MMU_PTE_RW_MASK,
+			    MMU_PAGE_SIZE, MMU_ENTRY_WRITE, Z_X86_MMU_RW,
 			    true);
 
 	/* Initialize per-thread page tables, since that wasn't done when
@@ -174,22 +174,6 @@ int z_arch_float_disable(struct k_thread *thread)
 }
 #endif /* CONFIG_FLOAT && CONFIG_FP_SHARING */
 
-/**
- * @brief Create a new kernel execution thread
- *
- * Initializes the k_thread object and sets up initial stack frame.
- *
- * @param thread pointer to thread struct memory, including any space needed
- *		for extra coprocessor context
- * @param stack the pointer to aligned stack memory
- * @param stack_size the stack size in bytes
- * @param entry thread entry point routine
- * @param parameter1 first param to entry point
- * @param parameter2 second param to entry point
- * @param parameter3 third param to entry point
- * @param priority thread priority
- * @param options thread options: K_ESSENTIAL, K_FP_REGS, K_SSE_REGS
- */
 void z_arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 		       size_t stack_size, k_thread_entry_t entry,
 		       void *parameter1, void *parameter2, void *parameter3,
@@ -215,13 +199,13 @@ void z_arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 	z_x86_mmu_set_flags(&z_x86_kernel_ptables, &header->privilege_stack,
 		MMU_PAGE_SIZE,
 		((options & K_USER) == 0U) ? MMU_ENTRY_READ : MMU_ENTRY_WRITE,
-		MMU_PTE_RW_MASK, true);
+		Z_X86_MMU_RW, true);
 #endif /* CONFIG_X86_USERSPACE */
 
 #if CONFIG_X86_STACK_PROTECTION
 	/* Set guard area to read-only to catch stack overflows */
 	z_x86_mmu_set_flags(&z_x86_kernel_ptables, &header->guard_page,
-			    MMU_PAGE_SIZE, MMU_ENTRY_READ, MMU_PTE_RW_MASK,
+			    MMU_PAGE_SIZE, MMU_ENTRY_READ, Z_X86_MMU_RW,
 			    true);
 #endif
 
